@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 const GameControls = ({ gameStarted, onStart, onMatch }) => {
     // Track button active states
     const [activeButtons, setActiveButtons] = useState({
@@ -70,3 +72,5 @@ const GameControls = ({ gameStarted, onStart, onMatch }) => {
       </div>
     );
   };
+
+  export default GameControls;

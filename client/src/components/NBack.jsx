@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import ProgressDisplay from "./ProgressDisplay";
 import OnboardingTutorial from "./OnboardingTutorial";
+import GameControls from "./GameControls"
 import { StimuliGenerator } from "../utils/StimuliGenerator";
 import { LEVEL_REQUIREMENTS } from '../constants/levelRequirements';
 
