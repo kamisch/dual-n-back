@@ -378,20 +378,13 @@ const NBackGame = () => {
             </div>
             
           ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => handleMatch("position")}
-                className="py-3 bg-gray-500 hover:bg-blue-600 text-white rounded-lg shadow transition-colors"
-              >
-                Position Match
-              </button>
-              <button
-                onClick={() => handleMatch("sound")}
-                className="py-3 bg-gray-500 hover:bg-purple-600 text-white rounded-lg shadow transition-colors"
-              >
-                Sound Match
-              </button>       
-            </div>
+            <div className="w-full max-w-xl px-4 fixed bottom-8 left-1/2 -translate-x-1/2">
+            <GameControls 
+              gameStarted={gameStarted}
+              onStart={startGame}
+              onMatch={handleMatch}
+            />
+          </div>
             
           )}
         </div>
