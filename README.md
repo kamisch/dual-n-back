@@ -1,4 +1,4 @@
-# Full Stack MERN Application
+# Dual N Back 
 
 A modern full-stack application built with MongoDB, Express.js, React, and Node.js (MERN stack), using PNPM as the package manager.
 

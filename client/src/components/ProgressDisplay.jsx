@@ -87,7 +87,7 @@ const ProgressDisplay = ({
               onClick={onExit}
               className="w-full py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
             >
-              Save & Exit
+              Exit
             </button>
           </div>
         </div>

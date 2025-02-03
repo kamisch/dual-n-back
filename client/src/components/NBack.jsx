@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import ProgressDisplay from "./ProgressDisplay";
+import OnboardingTutorial from "./OnboardingTutorial";
 import { StimuliGenerator } from "../utils/StimuliGenerator";
 import { LEVEL_REQUIREMENTS } from '../constants/levelRequirements';
 
@@ -9,7 +10,7 @@ const NBackGame = () => {
   const [activeSound, setActiveSound] = useState(null);
   const [score, setScore] = useState({ position: 0, sound: 0 });
   const [currentRound, setCurrentRound] = useState(0);
-  const [nBack, setNBack] = useState(2); // Start at n=1
+  const [nBack, setNBack] = useState(1); // Start at n=1
   const [timeLeft, setTimeLeft] = useState(1);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const [showProgressModal, setShowProgressModal] = useState(false);
@@ -20,7 +21,18 @@ const NBackGame = () => {
     sound: false,
     checked: false, // Flag to track if we've checked this round's matches
   });
-
+  const [currentRoundClicks, setCurrentRoundClicks] = useState({
+    position: false,
+    sound: false,
+  });
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    // Check if user has seen onboarding before
+    return !localStorage.getItem('hasSeenOnboarding');
+  });
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    localStorage.setItem('hasSeenOnboarding', 'true');
+  };
   const [stats, setStats] = useState({
     position: {
       correct: 0,
@@ -108,13 +120,6 @@ const NBackGame = () => {
       handleGameEnd(true);
     }
   };
-
-  const generateStimuli = () => {
-    const position = Math.floor(Math.random() * 9);
-    const sound = LETTERS[Math.floor(Math.random() * LETTERS.length)];
-    return { position, sound };
-  };
-
   const playSound = (letter) => {
     const utterance = new SpeechSynthesisUtterance(letter.toLowerCase());
     utterance.rate = 1;
@@ -130,7 +135,6 @@ const NBackGame = () => {
       return newFailures;
     });
   };
-
   const handleSuccess = () => {
     setConsecutiveFailures(0); // Reset consecutive failures on success
   };
@@ -168,6 +172,7 @@ const NBackGame = () => {
     setCurrentRound((prev) => prev + 1);
     setTimeLeft(1);
     playSound(newStimuli.sound);
+    setCurrentRoundClicks({ position: false, sound: false });
   }, [stimuliGenerator, currentRound, nBack, currentMatches, handleFailure]);
 
   const resetGameState = () => {
@@ -196,34 +201,51 @@ const NBackGame = () => {
 
   const handleMatch = (type) => {
     if (currentRound < nBack || !stimuliGenerator) return;
-
-    // Allow for both position and sound matches
-    if (type === "both") {
-      const positionIsMatch = currentMatches.position;
-      const soundIsMatch = currentMatches.sound;
-
-      if (positionIsMatch && soundIsMatch) {
-        // Handle successful dual match
-        updateStats("position", true);
-        updateStats("sound", true);
+  
+    const isMatch = currentMatches[type];
+  
+    // Mark this type as clicked for current round
+    setCurrentRoundClicks(prev => ({
+      ...prev,
+      [type]: true
+    }));
+  
+    // Check if both buttons have been clicked
+    const otherType = type === 'position' ? 'sound' : 'position';
+    const bothClicked = currentRoundClicks[otherType];
+  
+    if (bothClicked) {
+      // Handle as a dual match attempt
+      const bothMatch = currentMatches.position && currentMatches.sound;
+      if (bothMatch) {
+        // Success - both were actual matches
+        updateStats('position', true);
+        updateStats('sound', true);
         handleSuccess();
         checkProgression();
       } else {
-        handleFailure(); // Wrong dual match guess
+        // Failure - user thought both matched but they didn't
+        handleFailure();
       }
-      return;
-    }
-
-    // Single match handling
-    const isMatch = currentMatches[type];
-    updateStats(type, isMatch);
-
-    if (isMatch) {
-      handleSuccess();
-      checkProgression();
+      // Reset clicks for next round
+      setCurrentRoundClicks({ position: false, sound: false });
     } else {
-      handleFailure();
+      // Single match handling
+      updateStats(type, isMatch);
+      if (isMatch) {
+        handleSuccess();
+        checkProgression();
+      } else {
+        handleFailure();
+      }
     }
+  
+    // Mark this type of match as checked
+    setCurrentMatches(prev => ({
+      ...prev,
+      [type]: false,
+      checked: true,
+    }));
   };
 
   const updateStats = (type, isMatch) => {
@@ -273,6 +295,10 @@ const NBackGame = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center py-8">
+       <OnboardingTutorial 
+        isOpen={showOnboarding} 
+        onClose={handleOnboardingComplete} 
+      />
       <ProgressDisplay
         isOpen={showProgressModal}
         stats={stats}
@@ -286,28 +312,7 @@ const NBackGame = () => {
       <div className="w-full max-w-xl mx-auto px-4">
         <h1 className="text-2xl font-bold text-center mb-6">
           Dual N-Back Memory Game
-        </h1>
-
-        {/* Current Letter */}
-        <div className="bg-white p-4 rounded-lg shadow text-center mb-6">
-          <p className="text-sm text-gray-600 mt-2">
-            Round: {currentRound}, level: {nBack}
-          </p>
-        </div>
-        {/* Failures Counter */}
-        <div className="bg-white p-4 rounded-lg shadow text-center mb-6">
-          <p className="text-sm text-gray-600">Consecutive Failures</p>
-          <div className="flex justify-center gap-2 mt-2">
-            {[...Array(MAX_FAILURES)].map((_, index) => (
-              <div
-                key={index}
-                className={`w-4 h-4 rounded-full ${
-                  index < consecutiveFailures ? "bg-red-500" : "bg-gray-200"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
+        </h1>      
 
         {/* Game Grid */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
@@ -329,6 +334,28 @@ const NBackGame = () => {
             ))}
           </div>
         </div>
+        <div className="flex justify-between mb-4 px-2">
+          <p className="text-sm text-gray-600">
+            Round: {currentRound}
+          </p>
+          <div className="text-center">
+          <p className="text-xs text-gray-600">Consecutive Failures</p>
+          <div className="flex justify-center gap-2 mt-2">
+            {[...Array(MAX_FAILURES)].map((_, index) => (
+              <div
+                key={index}
+                className={`w-4 h-4 rounded-full ${
+                  index < consecutiveFailures ? "bg-red-500" : "bg-gray-200"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+          <p className="text-sm text-gray-600">
+          Level: {nBack}
+
+          </p>
+         </div>
 
         {/* Game Controls */}
         <div className="space-y-4">
@@ -347,28 +374,25 @@ const NBackGame = () => {
                   ? "Try Again"
                   : "Start Game"}
               </button>
+          
             </div>
+            
           ) : (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleMatch("position")}
-                className="py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow transition-colors"
+                className="py-3 bg-gray-500 hover:bg-blue-600 text-white rounded-lg shadow transition-colors"
               >
                 Position Match
               </button>
               <button
-                onClick={() => handleMatch("both")}
-                className="py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg shadow transition-colors"
-              >
-                Both Match
-              </button>
-              <button
                 onClick={() => handleMatch("sound")}
-                className="py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg shadow transition-colors"
+                className="py-3 bg-gray-500 hover:bg-purple-600 text-white rounded-lg shadow transition-colors"
               >
                 Sound Match
-              </button>
+              </button>       
             </div>
+            
           )}
         </div>
       </div>
