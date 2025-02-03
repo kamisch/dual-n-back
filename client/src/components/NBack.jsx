@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import ProgressDisplay from "./ProgressDisplay";
+import { StimuliGenerator } from "../utils/StimuliGenerator";
+import { LEVEL_REQUIREMENTS } from '../constants/levelRequirements';
 
 const NBackGame = () => {
   const [gameStarted, setGameStarted] = useState(false);
   const [activePosition, setActivePosition] = useState(null);
   const [activeSound, setActiveSound] = useState(null);
-  const [positionSequence, setPositionSequence] = useState([]);
-  const [soundSequence, setSoundSequence] = useState([]);
   const [score, setScore] = useState({ position: 0, sound: 0 });
   const [currentRound, setCurrentRound] = useState(0);
   const [nBack, setNBack] = useState(2); // Start at n=1
@@ -14,6 +14,12 @@ const NBackGame = () => {
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [stimuliGenerator, setStimuliGenerator] = useState(null);
+  const [currentMatches, setCurrentMatches] = useState({
+    position: false,
+    sound: false,
+    checked: false, // Flag to track if we've checked this round's matches
+  });
 
   const [stats, setStats] = useState({
     position: {
@@ -30,28 +36,6 @@ const NBackGame = () => {
   const INTERVAL = 3000;
   const MAX_FAILURES = 3;
 
-  const LEVEL_REQUIREMENTS = {
-    1: {
-      accuracy: 0.75,
-      minTrials: 20,
-      consecutiveNeeded: 5,
-    },
-    2: {
-      accuracy: 0.7,
-      minTrials: 25,
-      consecutiveNeeded: 5,
-    },
-    3: {
-      accuracy: 0.65,
-      minTrials: 30,
-      consecutiveNeeded: 6,
-    },
-    4: {
-      accuracy: 0.6,
-      minTrials: 35,
-      consecutiveNeeded: 7,
-    },
-  };
 
   const checkRequirementsMet = () => {
     const currentReq = LEVEL_REQUIREMENTS[nBack];
@@ -76,9 +60,16 @@ const NBackGame = () => {
     setGameStarted(false);
     setIsSuccess(success);
     setShowProgressModal(true);
-    // Clear any running intervals
     clearAllIntervals();
   }, []);
+
+  const clearAllIntervals = () => {
+    const highestId = window.setTimeout(() => {}, 0);
+    for (let i = 0; i <= highestId; i++) {
+      clearInterval(i);
+      clearTimeout(i);
+    }
+  };
 
   const handleNextLevel = () => {
     setNBack((prev) => prev + 1);
@@ -118,18 +109,6 @@ const NBackGame = () => {
     }
   };
 
-  // Progress to next level
-  const progressLevel = () => {
-    setNBack((prev) => prev + 1);
-    // Reset stats for new level
-    setStats({
-      position: { correct: 0, attempts: 0, consecutive: 0 },
-      sound: { correct: 0, attempts: 0, consecutive: 0 },
-    });
-  };
-
-  const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
-
   const generateStimuli = () => {
     const position = Math.floor(Math.random() * 9);
     const sound = LETTERS[Math.floor(Math.random() * LETTERS.length)];
@@ -146,7 +125,7 @@ const NBackGame = () => {
     setConsecutiveFailures((prev) => {
       const newFailures = prev + 1;
       if (newFailures >= MAX_FAILURES) {
-        setGameStarted(false); // End game
+        handleGameEnd(false); // This will show the progress display with failure state
       }
       return newFailures;
     });
@@ -157,46 +136,58 @@ const NBackGame = () => {
   };
 
   const nextRound = useCallback(() => {
-    const { position, sound } = generateStimuli();
+    if (!stimuliGenerator) return;
 
-    if (currentRound >= nBack) {
-      const positionMatch =
-        positionSequence[currentRound - nBack] === activePosition;
-      const soundMatch = soundSequence[currentRound - nBack] === activeSound;
-
-      // Check for missed matches (failures to click when there was a match)
-      if (positionMatch) {
+    // Check for missed matches from PREVIOUS round before generating new stimuli
+    if (!currentMatches.checked && currentRound >= nBack) {
+      // Only count as failure if there was a match and user didn't respond
+      if (currentMatches.position) {
         handleFailure(); // Failed to click on a position match
       }
-      if (soundMatch) {
+      if (currentMatches.sound) {
         handleFailure(); // Failed to click on a sound match
       }
     }
 
-    setPositionSequence((prev) => [...prev, activePosition]);
-    setSoundSequence((prev) => [...prev, activeSound]);
-    setActivePosition(position);
-    setActiveSound(sound);
+    // Generate new stimuli
+    const newStimuli = stimuliGenerator.generateStimuli();
+
+    // Get matches for the new stimuli
+    const matches = stimuliGenerator.getCurrentMatches();
+
+    // Set new matches and reset checked flag
+    setCurrentMatches({
+      position: matches.position,
+      sound: matches.sound,
+      checked: false,
+    });
+
+    // Update game state
+    setActivePosition(newStimuli.position);
+    setActiveSound(newStimuli.sound);
     setCurrentRound((prev) => prev + 1);
     setTimeLeft(1);
-    playSound(sound);
-  }, [
-    currentRound,
-    nBack,
-    positionSequence,
-    soundSequence,
-    activePosition,
-    activeSound,
-  ]);
+    playSound(newStimuli.sound);
+  }, [stimuliGenerator, currentRound, nBack, currentMatches, handleFailure]);
 
-  const startGame = () => {
-    setGameStarted(true);
+  const resetGameState = () => {
+    setStats({
+      position: { correct: 0, attempts: 0, consecutive: 0 },
+      sound: { correct: 0, attempts: 0, consecutive: 0 },
+    });
     setScore({ position: 0, sound: 0 });
     setCurrentRound(0);
-    setPositionSequence([]);
-    setSoundSequence([]);
     setConsecutiveFailures(0);
-    const { position, sound } = generateStimuli();
+    setCurrentMatches({ position: false, sound: false, checked: false });
+  };
+
+  const startGame = () => {
+    resetGameState();
+    setGameStarted(true);
+    const generator = new StimuliGenerator(nBack);
+
+    setStimuliGenerator(generator);
+    const { position, sound } = generator.generateStimuli();
     setActivePosition(position);
     setActiveSound(sound);
     playSound(sound);
@@ -204,40 +195,63 @@ const NBackGame = () => {
   };
 
   const handleMatch = (type) => {
-    if (currentRound < nBack) return;
+    if (currentRound < nBack || !stimuliGenerator) return;
 
-    // Use the correct sequence variables
-    const isPosition = type === "position";
-    const matchSequence = isPosition ? positionSequence : soundSequence;
-    const currentValue = isPosition ? activePosition : activeSound;
-    const actualMatch = matchSequence[currentRound - nBack] === currentValue;
+    // Allow for both position and sound matches
+    if (type === "both") {
+      const positionIsMatch = currentMatches.position;
+      const soundIsMatch = currentMatches.sound;
 
-    // Update stats
+      if (positionIsMatch && soundIsMatch) {
+        // Handle successful dual match
+        updateStats("position", true);
+        updateStats("sound", true);
+        handleSuccess();
+        checkProgression();
+      } else {
+        handleFailure(); // Wrong dual match guess
+      }
+      return;
+    }
+
+    // Single match handling
+    const isMatch = currentMatches[type];
+    updateStats(type, isMatch);
+
+    if (isMatch) {
+      handleSuccess();
+      checkProgression();
+    } else {
+      handleFailure();
+    }
+  };
+
+  const updateStats = (type, isMatch) => {
     setStats((prev) => {
       const typeStats = prev[type];
-      const newConsecutive = actualMatch ? typeStats.consecutive + 1 : 0;
-
       return {
         ...prev,
         [type]: {
-          correct: actualMatch ? typeStats.correct + 1 : typeStats.correct,
+          correct: isMatch ? typeStats.correct + 1 : typeStats.correct,
           attempts: typeStats.attempts + 1,
-          consecutive: newConsecutive,
+          consecutive: isMatch ? typeStats.consecutive + 1 : 0,
         },
       };
     });
 
-    // Update score and check for success/failure
-    if (actualMatch) {
+    if (isMatch) {
       setScore((prev) => ({
         ...prev,
         [type]: prev[type] + 1,
       }));
-      handleSuccess();
-    } else {
-      handleFailure();
     }
-    checkProgression();
+
+    // Mark match as handled
+    setCurrentMatches((prev) => ({
+      ...prev,
+      [type]: false,
+      checked: true,
+    }));
   };
 
   useEffect(() => {
@@ -274,12 +288,11 @@ const NBackGame = () => {
           Dual N-Back Memory Game
         </h1>
 
-
         {/* Current Letter */}
         <div className="bg-white p-4 rounded-lg shadow text-center mb-6">
-          <p className="text-sm text-gray-600">Current Letter</p>
-          <p className="text-3xl font-bold">{activeSound || "-"}</p>
-          <p className="text-sm text-gray-600 mt-2">Round: {currentRound}</p>
+          <p className="text-sm text-gray-600 mt-2">
+            Round: {currentRound}, level: {nBack}
+          </p>
         </div>
         {/* Failures Counter */}
         <div className="bg-white p-4 rounded-lg shadow text-center mb-6">
@@ -296,7 +309,6 @@ const NBackGame = () => {
           </div>
         </div>
 
-
         {/* Game Grid */}
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <div className="grid grid-cols-3 gap-3 aspect-square">
@@ -304,15 +316,16 @@ const NBackGame = () => {
               <div
                 key={index}
                 className={`
-                  aspect-square rounded-lg
-                  ${
-                    activePosition === index
-                      ? "bg-blue-500 shadow-lg"
-                      : "bg-gray-200"
-                  }
-                  transition-all duration-200
-                `}
-              />
+        aspect-square rounded-lg
+        flex items-center justify-center
+        ${
+          activePosition === index
+            ? "bg-blue-500 shadow-lg text-white text-2xl font-bold"
+            : "bg-gray-200"
+        }
+        transition-all duration-200
+      `}
+              ></div>
             ))}
           </div>
         </div>
@@ -336,12 +349,18 @@ const NBackGame = () => {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => handleMatch("position")}
                 className="py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg shadow transition-colors"
               >
                 Position Match
+              </button>
+              <button
+                onClick={() => handleMatch("both")}
+                className="py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg shadow transition-colors"
+              >
+                Both Match
               </button>
               <button
                 onClick={() => handleMatch("sound")}
