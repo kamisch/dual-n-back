@@ -337,7 +337,7 @@ const NBackGame = () => {
         </div>
         <div className="flex justify-between mb-4 px-2">
           <p className="text-sm text-gray-600">
-            Round: {currentRound}
+            Round: {currentRound + 1}
           </p>
           <div className="text-center">
           <p className="text-xs text-gray-600">Consecutive Failures</p>
