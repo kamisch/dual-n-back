@@ -1,21 +1,22 @@
 # Dual N Back 
 
-A modern full-stack application built with MongoDB, Express.js, React, and Node.js (MERN stack), using PNPM as the package manager.
+A modern frontend application built with React, focusing on implementing the Dual N-Back cognitive training exercise. Currently running as a client-side only application with browser state management.
+
+## Play the Game
+
+You can access and play the game at: [https://free-n-back.vercel.app](https://free-n-back.vercel.app)
 
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
 - [Node.js](https://nodejs.org/) (version 16 or higher)
 - [PNPM](https://pnpm.io/) (`npm install -g pnpm`)
-- [MongoDB](https://www.mongodb.com/try/download/community)
 
 ## Project Structure
 
 ```
 project-root/
 ├── client/                # React frontend
-├── server/                # Express backend
-├── pnpm-workspace.yaml    # Workspace configuration
 └── package.json          # Root package.json
 ```
 
@@ -34,55 +35,16 @@ pnpm install
 
 3. Set up environment variables:
 ```bash
-# In server directory
-cp .env.example .env
-
 # In client directory
 cp .env.example .env.local
 ```
 
-4. Start development servers:
+4. Start development server:
 ```bash
-# Start both client and server
 pnpm dev
-
-# Or start them separately
-pnpm dev:client
-pnpm dev:server
 ```
 
 ## Detailed Setup Instructions
-
-### Server Setup
-
-1. Navigate to server directory:
-```bash
-cd server
-```
-
-2. Install dependencies:
-```bash
-pnpm install
-```
-
-3. Configure environment variables:
-```bash
-# Copy example env file
-cp .env.example .env
-
-# Edit .env file with your configuration
-PORT=5000
-NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/your-database-name
-JWT_SECRET=your-secret-key
-```
-
-4. Start the server:
-```bash
-pnpm dev
-```
-
-The server will start on `http://localhost:5000`
 
 ### Client Setup
 
@@ -100,9 +62,6 @@ pnpm install
 ```bash
 # Copy example env file
 cp .env.example .env.local
-
-# Edit .env.local with your configuration
-VITE_API_URL=http://localhost:5000/api
 ```
 
 4. Start the development server:
@@ -117,14 +76,8 @@ The client will start on `http://localhost:5173`
 In the project root directory:
 
 ```bash
-# Run all development servers
+# Run development server
 pnpm dev
-
-# Run client only
-pnpm dev:client
-
-# Run server only
-pnpm dev:server
 
 # Build all packages
 pnpm build
@@ -142,45 +95,24 @@ pnpm preview      # Preview production build
 pnpm lint         # Run ESLint
 ```
 
-In the server directory:
-
-```bash
-pnpm dev          # Start development server
-pnpm start        # Start production server
-pnpm test         # Run tests
-```
-
 ## Environment Variables
-
-### Server (.env)
-
-```env
-PORT=5000
-NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/your-database-name
-JWT_SECRET=your-secret-key
-JWT_EXPIRE=24h
-```
 
 ### Client (.env.local)
 
 ```env
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:5173
 ```
 
 ## Adding Dependencies
 
-To add a dependency to a specific workspace:
+To add a dependency to the client:
 
 ```bash
 # Add to client
-pnpm --filter client add <package-name>
-
-# Add to server
-pnpm --filter server add <package-name>
+pnpm add <package-name>
 
 # Add as dev dependency
-pnpm --filter <workspace> add -D <package-name>
+pnpm add -D <package-name>
 ```
 
 ## VSCode Setup (Recommended)
@@ -190,7 +122,6 @@ Install these extensions for the best development experience:
 - ESLint
 - Prettier
 - ES7+ React/Redux/React-Native snippets
-- MongoDB for VS Code
 
 Add this to your VSCode settings.json:
 
@@ -205,29 +136,18 @@ Add this to your VSCode settings.json:
 
 ## Deployment
 
-### Server Deployment
-
-1. Build the server:
-```bash
-cd server
-pnpm build
-```
-
-2. Set production environment variables
-3. Start the server:
-```bash
-pnpm start
-```
-
 ### Client Deployment
 
 1. Build the client:
 ```bash
-cd client
 pnpm build
 ```
 
 2. The `dist` folder will contain the built files ready for deployment
+
+## Future Development
+
+Server-side features are currently under development. This will include user authentication, progress tracking, and performance analytics. Stay tuned for updates!
 
 ## Contributing
 
